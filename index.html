@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Everyday Lists</title>
+  <meta name="description" content="Chores, groceries, trips, food, habits, notes and today's tasks, saved in your own Google Sheet.">
+  <meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121512" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lists">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650&family=Figtree:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top" id="top"></header>
+  <main id="view" class="stack"></main>
+</div>
+<div id="sheet" hidden><div class="scrim" data-act="close-sheet"></div><div class="panel" role="dialog" aria-modal="true" id="panel"></div></div>
+<div id="toast" hidden role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
