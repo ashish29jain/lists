@@ -41,7 +41,7 @@ const S={lists:{},order:[],ready:false,route:{v:'home'},stack:[],homeQ:'',refQ:'
    The connection (web app URL + key) is saved on this phone only, so one copy of the app
    can serve any number of people, each with a separate sheet. A copy of the lists is kept
    on the phone too, so the app opens instantly and works offline. */
-const APP_VERSION='v1'; // keep in step with VERSION in sw.js
+const APP_VERSION='v2'; // keep in step with VERSION in sw.js
 const LKEY='everyday-lists-cache-v1',CKEY='everyday-lists-connection-v1';
 const store={get(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 S.conn=store.get(CKEY);
@@ -150,7 +150,7 @@ function summary(l){
   switch(l.type){
     case 'checklist':{const act=l.items.filter(i=>clActive(i,today));const d=act.filter(i=>clDone(l,i)).length;const r={daily:'Resets daily',weekly:'Resets weekly',monthly:'Resets monthly'}[l.reset];return `${r?r+' · ':''}${d} of ${act.length} done`}
     case 'shopping':{const n=l.items.filter(i=>!i.done).length;return `${n} to buy`}
-    case 'trips':{const a=l.trips.filter(t=>!t.past);if(a.length){const t=a[0];const d=t.items.filter(i=>i.done).length;return `${t.name} · ${d} of ${t.items.length} packed`}return `${l.templates.length} template${l.templates.length===1?'':'s'}`}
+    case 'trips':{const a=l.trips.filter(t=>!t.past);if(a.length){const t=a[0];const need=t.items.filter(i=>!i.skip);const d=need.filter(i=>i.done).length;return `${t.name} · ${d} of ${need.length} packed`}return `${l.templates.length} template${l.templates.length===1?'':'s'}`}
     case 'rotation':{const e=[...(l.log||[])].sort((a,b)=>b.at.localeCompare(a.at))[0];return e?`Last: ${logText(l,e)} · ${niceDay(e.at)}`:`${l.items.length} options`}
     case 'habits':{const k=dkey();const d=l.habits.filter(h=>h.log.includes(k)).length;return `${d} of ${l.habits.length} done today`}
     case 'reference':return `${l.items.length} item${l.items.length===1?'':'s'}`;
@@ -298,23 +298,24 @@ function vTrips(l){
   const act=l.trips.filter(t=>!t.past),past=l.trips.filter(t=>t.past);
   let h=`<button class="btn primary block" data-act="tr-new">${ms('add')}Start a new trip</button>`;
   h+=`<div class="sec-h"><span>Upcoming trips</span></div>`;
-  h+=act.length?`<div class="card" data-arr="trips">${act.map(t=>{const d=t.items.filter(i=>i.done).length;const p=t.items.length?Math.round(d/t.items.length*100):0;
-    return `<div class="row" data-id="${t.id}">${handle(t.name)}<button class="tripcard" data-act="tr-open" data-tid="${t.id}"><span class="t">${esc(t.name)}</span><span class="meta">${t.dates?esc(t.dates)+' · ':''}${d} of ${t.items.length} packed</span><span class="bar"><i style="width:${p}%"></i></span></button>${ms('chevron_right','chev')}</div>`}).join('')}</div>`:`<div class="inline-note">${ms('flight_takeoff')}No trips planned. Start one from a template.</div>`;
+  h+=act.length?`<div class="card" data-arr="trips">${act.map(t=>{const need=t.items.filter(i=>!i.skip);const d=need.filter(i=>i.done).length;const p=need.length?Math.round(d/need.length*100):0;
+    return `<div class="row" data-id="${t.id}">${handle(t.name)}<button class="tripcard" data-act="tr-open" data-tid="${t.id}"><span class="t">${esc(t.name)}</span><span class="meta">${t.dates?esc(t.dates)+' · ':''}${d} of ${need.length} packed</span><span class="bar"><i style="width:${p}%"></i></span></button>${ms('chevron_right','chev')}</div>`}).join('')}</div>`:`<div class="inline-note">${ms('flight_takeoff')}No trips planned. Start one from a template.</div>`;
   h+=`<div class="sec-h"><span>Templates</span><button class="btn" style="height:32px;font-size:13px" data-act="tpl-new">${ms('add')}New</button></div>`;
   h+=l.templates.length?`<div class="card" data-arr="templates">${l.templates.map(t=>`<div class="row" data-id="${t.id}">${handle(t.name)}<button class="rtxt" data-act="tpl-open" data-tid="${t.id}"><span class="t">${esc(t.name)}</span><span class="meta">${t.items.length} items · master list</span></button>${ms('chevron_right','chev')}</div>`).join('')}</div>`:`<div class="inline-note">Make a template with the things you always pack.</div>`;
   if(past.length)h+=`<div class="sec-h"><span>Past trips</span></div><div class="card" data-arr="trips">${past.map(t=>`<div class="row" data-id="${t.id}">${handle(t.name)}<button class="rtxt" data-act="tr-open" data-tid="${t.id}"><span class="t">${esc(t.name)}</span><span class="meta">${t.dates?esc(t.dates)+' · ':''}${t.items.length} items</span></button>${ms('chevron_right','chev')}</div>`).join('')}</div>`;
   return h
 }
 function vTrip(l,t){
-  const tpl=l.templates.find(x=>x.id===t.tplId);const d=t.items.filter(i=>i.done).length;const p=t.items.length?Math.round(d/t.items.length*100):0;
-  let h=`<div class="prog"><div class="bar"><i style="width:${p}%"></i></div><div class="ptxt">${d} of ${t.items.length} packed${t.dates?' · '+esc(t.dates):''}${tpl?' · from '+esc(tpl.name):''}${t.past?' · past trip':''}</div></div>`;
+  const tpl=l.templates.find(x=>x.id===t.tplId);const need=t.items.filter(i=>!i.skip),skipped=t.items.filter(i=>i.skip);const d=need.filter(i=>i.done).length;const p=need.length?Math.round(d/need.length*100):0;
+  let h=`<div class="prog"><div class="bar"><i style="width:${p}%"></i></div><div class="ptxt">${d} of ${need.length} packed${skipped.length?` · ${skipped.length} not needed`:''}${t.dates?' · '+esc(t.dates):''}${tpl?' · from '+esc(tpl.name):''}${t.past?' · past trip':''}</div></div>`;
   h+=`<form class="add" data-form="tr-add" style="flex-direction:column;align-items:stretch"><div class="add"><input id="add-tr-add" name="t" class="in" placeholder="Add an item" autocomplete="off" aria-label="Item name"><select name="s" class="sel" aria-label="Section">${opts(l.sections,S.lastSec&&l.sections.includes(S.lastSec)?S.lastSec:'Other')}</select><button class="btn primary sq" aria-label="Add">${ms('add')}</button></div>
   ${tpl?`<label class="check"><input type="checkbox" name="also"> Also add to “${esc(tpl.name)}” template</label><small class="hint">Left unticked, the item is only for this trip.</small>`:''}</form>`;
-  if(t.items.length&&d===t.items.length)h+=`<div class="inline-note">${ms('celebration')}Everything is packed.</div>`;
+  if(need.length&&d===need.length)h+=`<div class="inline-note">${ms('celebration')}Everything is packed.</div>`;
   const row=i=>{const rec=isRecent(i.id);return `<div class="row${i.done?(rec?leaving(i.id):' dim'):''}" data-id="${i.id}">${handle(i.text)}<button class="tick ${i.done?'on':''}" data-act="tr-tog" data-id="${i.id}" aria-pressed="${!!i.done}" aria-label="${esc(i.text)}">${ms('check')}</button><button class="rtxt" data-act="tr-edit" data-id="${i.id}"><span class="t ${i.done?'struck':''}">${esc(i.text)}</span>${!i.done&&getRemind(i)?`<span class="meta">${remindBadge(i)}</span>`:''}</button>${i.only?pill('warn','This trip'):''}</div>`};
   // packed items sink to the bottom of their section 5 seconds after being ticked
-  const ordered=[...t.items.filter(i=>!i.done||isRecent(i.id)),...t.items.filter(i=>i.done&&!isRecent(i.id))];
-  h+=groupBySec(l,ordered,row,'trip:'+t.id)||`<div class="inline-note">This trip has no items yet.</div>`;
+  const ordered=[...need.filter(i=>!i.done||isRecent(i.id)),...need.filter(i=>i.done&&!isRecent(i.id))];
+  h+=groupBySec(l,ordered,row,'trip:'+t.id)||(t.items.length?'':`<div class="inline-note">This trip has no items yet.</div>`);
+  if(skipped.length)h+=`<div class="sec-h"><span>Not needed for this trip</span><span>${skipped.length}</span></div><div class="card">${skipped.map(i=>`<div class="row dim" data-id="${i.id}"><span style="width:10px"></span><button class="rtxt" data-act="tr-edit" data-id="${i.id}"><span class="t">${esc(i.text)}</span><span class="meta">${esc(i.sec||'Other')}</span></button><button class="made" data-act="tr-skip" data-id="${i.id}" aria-label="${esc(i.text)} is needed after all">${ms('undo')}Needed</button></div>`).join('')}</div>`;
   return h
 }
 function vTpl(l,t){
@@ -465,7 +466,7 @@ function applyRemind(f,i){if(!f.elements.rtype)return;const r=readRemind(f,i);de
 document.addEventListener('change',e=>{if(e.target.closest&&e.target.closest('#panel')&&(e.target.name==='rtype'||e.target.name==='rend'))syncRemindUI()});
 function eachRemindable(l,fn){
   if(['checklist','shopping','rotation','reference'].includes(l.type))(l.items||[]).forEach(i=>fn(i,'',''));
-  if(l.type==='trips')(l.trips||[]).filter(t=>!t.past).forEach(t=>t.items.forEach(i=>fn(i,t.id,t.name)));
+  if(l.type==='trips')(l.trips||[]).filter(t=>!t.past).forEach(t=>t.items.filter(i=>!i.skip).forEach(i=>fn(i,t.id,t.name)));
   if(l.type==='notes')(l.notes||[]).forEach(n=>fn(n,n.subj,((l.subjects||[]).find(s=>s.id===n.subj)||{}).name||''))}
 function findItem(l,id,ctx){if(l.type==='trips'){const t=l.trips.find(x=>x.id===ctx);return t&&t.items.find(i=>i.id===id)}if(l.type==='notes')return l.notes.find(n=>n.id===id);if(l.type==='habits')return l.habits.find(h=>h.id===id);return (l.items||[]).find(i=>i.id===id)}
 function itemDoneOn(l,i,r,k){return (r.done||[]).includes(k)||(l.type==='checklist'&&(i.log||[]).includes(k))}
@@ -530,6 +531,7 @@ function sheetSh(i){const l=L();S.sheet={id:i.id};
 function sheetTripItem(l,t,i,isTpl){S.sheet={id:i.id};const tpl=!isTpl&&l.templates.find(x=>x.id===t.tplId);
   openSheet(`${sheetHead('Edit item')}<form data-form="${isTpl?'tpl-item':'tr-item'}">${fld('Item',`<input class="in" name="t" value="${esc(i.text)}" autocomplete="off">`)}${fld('Section',`<select class="sel" name="s">${opts(l.sections,i.sec)}</select>`)}
   ${S.route.v==='tpl'?'':remindFields(i)}<div class="btns"><button class="btn primary" style="flex:1">Save</button><button type="button" class="btn" data-act="move-top">${ms('vertical_align_top')}Move to top</button></div></form>
+  ${isTpl?'':`<button class="btn block" data-act="tr-skip" data-id="${i.id}">${ms(i.skip?'undo':'block')}${i.skip?'Needed for this trip after all':'Not needed for this trip'}</button>`}
   ${(!isTpl&&i.only&&tpl)?`<div class="fld"><small class="hint">This item is only on this trip.</small><button class="btn block" data-act="tr-to-tpl">${ms('playlist_add')}Add to “${esc(tpl.name)}” template too</button></div>`:''}
   <button class="btn danger block" data-act="item-del">${ms('delete')}Delete item</button>`)}
 function sheetNewTrip(tplId){const l=L();
@@ -610,6 +612,7 @@ const ACT={
   'tr-to-tpl'(){const l=L();const t=l.trips.find(x=>x.id===S.route.tid);const tpl=l.templates.find(x=>x.id===t.tplId);const i=sheetItem();tpl.items.push({id:uid(),text:i.text,sec:i.sec});i.only=false;save(l.id);closeSheet();render();toast(`Added to ${tpl.name}`)},
   'trip-menu':sheetTripMenu,'tpl-menu':sheetTplMenu,
   'tr-past'(){const l=L();const t=l.trips.find(x=>x.id===S.route.tid);t.past=!t.past;save(l.id);closeSheet();render();toast(t.past?'Moved to past trips':'Moved to upcoming')},
+  'tr-skip'(el){const l=L();const t=l.trips.find(x=>x.id===S.route.tid);const i=t.items.find(x=>x.id===el.dataset.id);if(!i)return;i.skip=!i.skip;if(i.skip)delete S.recent[i.id];save(l.id);closeSheet();render();toast(i.skip?`${i.text}: not needed for this trip`:`${i.text} is back on the list`)},
   'tr-untick'(){const l=L();const t=l.trips.find(x=>x.id===S.route.tid);closeSheet();withUndo(l.id,'Unticked everything',()=>t.items.forEach(i=>i.done=false))},
   'tr-save-tpl'(){const l=L();const t=l.trips.find(x=>x.id===S.route.tid);const n={id:uid(),name:`${t.name} template`,items:t.items.map(i=>({id:uid(),text:i.text,sec:i.sec}))};l.templates.push(n);save(l.id);closeSheet();render();toast(`Saved “${n.name}”`)},
   'tr-del'(){const l=L();const t=l.trips.find(x=>x.id===S.route.tid);closeSheet();S.route={v:'list',id:l.id};S.stack=[{v:'home'}];withUndo(l.id,`Deleted ${t.name}`,()=>{l.trips=l.trips.filter(x=>x!==t)})},
@@ -687,7 +690,7 @@ const FORM={
   'tr-new'(f){const l=L();const n=val(f,'n');if(!n){f.elements.n.focus();f.elements.n.placeholder='Give the trip a name';return}
     const src=f.elements.f.value;let items=[],tplId=null;
     if(src.startsWith('tpl:')){const t=l.templates.find(x=>'tpl:'+x.id===src);tplId=t.id;items=t.items.map(i=>({id:uid(),text:i.text,sec:i.sec,done:false,only:false}))}
-    else if(src.startsWith('trip:')){const t=l.trips.find(x=>'trip:'+x.id===src);tplId=t.tplId;items=t.items.map(i=>({id:uid(),text:i.text,sec:i.sec,done:false,only:!!i.only}))}
+    else if(src.startsWith('trip:')){const t=l.trips.find(x=>'trip:'+x.id===src);tplId=t.tplId;items=t.items.map(i=>({id:uid(),text:i.text,sec:i.sec,done:false,only:!!i.only,skip:false}))}
     const trip={id:uid(),name:n,dates:val(f,'d'),tplId,items,past:false};l.trips.unshift(trip);save(l.id);closeSheet();
     if(S.route.v==='tpl')S.route={v:'list',id:l.id};go({v:'trip',id:l.id,tid:trip.id})},
   'tr-add'(f){const t=val(f,'t');if(!t)return;const l=L();const trip=l.trips.find(x=>x.id===S.route.tid);const s=f.elements.s.value;S.lastSec=s;const also=f.elements.also?.checked;const tpl=l.templates.find(x=>x.id===trip.tplId);
