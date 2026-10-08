@@ -1,6 +1,6 @@
 // Keeps the app on the phone so it opens instantly and works offline.
 // Bump VERSION (and APP_VERSION in app.js) whenever you upload a new version of the app.
-const VERSION = 'lists-v2';
+const VERSION = 'lists-v3';
 const FONTS = 'lists-fonts';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 

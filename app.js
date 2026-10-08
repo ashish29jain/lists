@@ -41,7 +41,7 @@ const S={lists:{},order:[],ready:false,route:{v:'home'},stack:[],homeQ:'',refQ:'
    The connection (web app URL + key) is saved on this phone only, so one copy of the app
    can serve any number of people, each with a separate sheet. A copy of the lists is kept
    on the phone too, so the app opens instantly and works offline. */
-const APP_VERSION='v2'; // keep in step with VERSION in sw.js
+const APP_VERSION='v3'; // keep in step with VERSION in sw.js
 const LKEY='everyday-lists-cache-v1',CKEY='everyday-lists-connection-v1';
 const store={get(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 S.conn=store.get(CKEY);
